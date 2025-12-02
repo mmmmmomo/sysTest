@@ -1,0 +1,57 @@
+# Ignore common build artifacts
+/build/
+/dist/
+/target/
+/.gradle/
+/out/
+
+# Ignore common dependency directories
+/node_modules/
+*/node_modules/
+/vendor/
+/jspm_packages/
+/bower_components/
+
+# Ignore common IDE and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.iml
+*.iws
+*.ipr
+
+# Ignore common log and temporary files
+*.log
+*.tmp
+*~
+~*.*
+
+# Ignore environment variables
+.env
+.env.*.local
+.local
+
+# Ignore package manager lock files (optional, depending on project needs)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# Ignore specific language/framework related files (example, adjust as needed)
+# Python
+__pycache__/
+*.pyc
+
+# Java
+*.class
+
+# Ruby
+.bundle/
+
+# Go
+/bin/
+
+# Other common ignores
+/.history/
+.sass-cache/
+/coverage/

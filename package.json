@@ -1,0 +1,20 @@
+{
+  "name": "systest",
+  "version": "1.0.0",
+  "description": "A complete file management system with user authentication, role-based access control, and a premium UI.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "client": "cd client && npm run dev",
+    "server": "cd server && node index.js",
+    "installAll": "npm install && cd client && npm install && cd ../ && cd server && npm install && cd ../",
+    "dev": "concurrently \"npm run server\" \"npm run client\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

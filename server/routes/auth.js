@@ -1,0 +1,56 @@
+const express = require('express');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const db = require('../database');
+const { SECRET_KEY } = require('../authMiddleware');
+
+const router = express.Router();
+
+router.post('/register', (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ message: "Username and password required" });
+    }
+
+    const salt = bcrypt.genSaltSync(10);
+    const hash = bcrypt.hashSync(password, salt);
+
+    db.run(`INSERT INTO users (username, password) VALUES (?, ?)`, [username, hash], function (err) {
+        if (err) {
+            if (err.message.includes('UNIQUE constraint failed')) {
+                return res.status(400).json({ message: "Username already exists" });
+            }
+            return res.status(500).json({ error: err.message });
+        }
+        res.status(201).json({ message: "User registered successfully", userId: this.lastID });
+    });
+});
+
+router.post('/login', (req, res) => {
+    const { username, password } = req.body;
+    console.log(`Login attempt for username: ${username}`);
+
+    db.get(`SELECT * FROM users WHERE username = ?`, [username], (err, user) => {
+        if (err) {
+            console.error('Database error:', err);
+            return res.status(500).json({ error: err.message });
+        }
+        if (!user) {
+            console.log(`User not found: ${username}`);
+            return res.status(400).json({ message: "User not found" });
+        }
+
+        const validPassword = bcrypt.compareSync(password, user.password);
+        if (!validPassword) {
+            console.log(`Invalid password for user: ${username}`);
+            return res.status(400).json({ message: "Invalid password" });
+        }
+
+        console.log(`Login successful for user: ${username}`);
+        const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, SECRET_KEY, { expiresIn: '1h' });
+        res.json({ token, user: { id: user.id, username: user.username, role: user.role } });
+    });
+});
+
+module.exports = router;
+
