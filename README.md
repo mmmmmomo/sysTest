@@ -15,9 +15,7 @@ A complete file management system with user authentication, role-based access co
 
 1.  **Install Dependencies**:
     ```bash
-    npm install
-    cd server && npm install
-    cd ../client && npm install
+    npm run installAll
     ```
 
 2.  **Start Project (Both Client & Server)**:
