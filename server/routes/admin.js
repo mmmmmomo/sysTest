@@ -5,9 +5,22 @@ const { authenticateToken, isAdmin } = require('../authMiddleware');
 
 const router = express.Router();
 
-// List all users
+// List all users (optional group_id filter)
 router.get('/users', authenticateToken, isAdmin, (req, res) => {
-    db.all(`SELECT id, username, role FROM users`, [], (err, rows) => {
+    let query = `SELECT id, username, role, position, group_id FROM users`;
+    let params = [];
+
+    if (req.query.group_id) {
+        query += ` WHERE group_id = ?`;
+        params.push(req.query.group_id);
+    } else {
+        // If no group_id specified, maybe show users with NO group? 
+        // Or show all? The file system shows root files. 
+        // Let's assume root view shows users with NO group.
+        query += ` WHERE group_id IS NULL`;
+    }
+
+    db.all(query, params, (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows);
     });
@@ -37,6 +50,31 @@ router.delete('/users/:id', authenticateToken, isAdmin, (req, res) => {
                 res.json({ message: "User deleted" });
             });
         });
+    });
+});
+
+// Update user position
+router.put('/users/:id/position', authenticateToken, isAdmin, (req, res) => {
+    const { position } = req.body;
+    const validPositions = ['Staff', 'Manager', 'Director'];
+    if (!validPositions.includes(position)) {
+        return res.status(400).json({ message: "Invalid position" });
+    }
+
+    db.run(`UPDATE users SET position = ? WHERE id = ?`, [position, req.params.id], function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) return res.status(404).json({ message: "User not found" });
+        res.json({ message: "Position updated" });
+    });
+});
+
+// Update user group
+router.put('/users/:id/group', authenticateToken, isAdmin, (req, res) => {
+    const { group_id } = req.body;
+    db.run(`UPDATE users SET group_id = ? WHERE id = ?`, [group_id || null, req.params.id], function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) return res.status(404).json({ message: "User not found" });
+        res.json({ message: "Group updated" });
     });
 });
 

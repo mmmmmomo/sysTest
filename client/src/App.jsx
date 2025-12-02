@@ -4,7 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
-import AdminPanel from './components/AdminPanel';
+import UserManagement from './components/UserManagement';
 
 const PrivateRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -32,7 +32,7 @@ function App() {
           } />
           <Route path="/admin" element={
             <AdminRoute>
-              <AdminPanel />
+              <UserManagement />
             </AdminRoute>
           } />
         </Routes>

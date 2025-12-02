@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const Register = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [position, setPosition] = useState('Staff');
     const [error, setError] = useState('');
+    const { login } = useAuth();
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
@@ -13,7 +16,7 @@ const Register = () => {
             const res = await fetch('http://localhost:3000/api/auth/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password }),
+                body: JSON.stringify({ username, password, position })
             });
             const data = await res.json();
             if (res.ok) {
@@ -42,8 +45,8 @@ const Register = () => {
                             required
                         />
                     </div>
-                    <div className="input-group">
-                        <label className="input-label">Password</label>
+                    <div className="form-group">
+                        <label>Password</label>
                         <input
                             type="password"
                             className="input-field"
@@ -51,6 +54,18 @@ const Register = () => {
                             onChange={(e) => setPassword(e.target.value)}
                             required
                         />
+                    </div>
+                    <div className="form-group">
+                        <label>Position</label>
+                        <select
+                            className="input-field"
+                            value={position}
+                            onChange={(e) => setPosition(e.target.value)}
+                        >
+                            <option value="Staff">Staff</option>
+                            <option value="Manager">Manager</option>
+                            <option value="Director">Director</option>
+                        </select>
                     </div>
                     <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Register</button>
                 </form>

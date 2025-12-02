@@ -43,15 +43,15 @@ const PreviewModal = ({ file, onClose }) => {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            backgroundColor: 'rgba(0, 0, 0, 0.1)',
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
             zIndex: 1000,
-            backdropFilter: 'blur(5px)'
+            backdropFilter: 'blur(20px)'
         }} onClick={onClose}>
             <div style={{
-                backgroundColor: '#1e293b',
+                backgroundColor: 'rgba(30, 41, 59, 0.9)',
                 padding: '1.5rem',
                 borderRadius: '1rem',
                 maxWidth: '90%',
@@ -59,8 +59,8 @@ const PreviewModal = ({ file, onClose }) => {
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '1rem',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
             }} onClick={e => e.stopPropagation()}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h3 style={{ margin: 0, color: '#f8fafc' }}>{file.filename}</h3>
