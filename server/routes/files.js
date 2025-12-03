@@ -28,6 +28,9 @@ const upload = multer({ storage: storage });
 router.post('/upload', authenticateToken, upload.single('file'), (req, res) => {
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
+    // Fix Chinese filename encoding (latin1 -> utf8)
+    req.file.originalname = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
+
     const { filename, path: filePath, size, mimetype } = req.file;
     const ownerId = req.user.id;
     const parentId = req.body.parent_id || null;
@@ -58,21 +61,94 @@ router.post('/folder', authenticateToken, (req, res) => {
     );
 });
 
-// Rename File/Folder
+// Rename or Move File/Folder
 router.put('/:id', authenticateToken, (req, res) => {
-    const { name } = req.body;
+    const { name, parent_id, access_level } = req.body;
     const id = req.params.id;
 
-    if (!name) return res.status(400).json({ message: "Name required" });
+    if (parent_id && parseInt(parent_id) === parseInt(id)) {
+        return res.status(400).json({ message: "Cannot move a folder into itself" });
+    }
 
-    db.run(`UPDATE files SET filename = ? WHERE id = ? AND owner_id = ?`,
-        [name, id, req.user.id],
-        function (err) {
+    // Check for circular dependency
+    if (parent_id) {
+        const checkCycle = (targetId, sourceId, callback) => {
+            if (!targetId) return callback(false); // Root is safe
+            if (parseInt(targetId) === parseInt(sourceId)) return callback(true); // Cycle detected
+
+            db.get(`SELECT parent_id FROM files WHERE id = ?`, [targetId], (err, row) => {
+                if (err || !row) return callback(false); // Error or not found, assume safe (or handle error)
+                checkCycle(row.parent_id, sourceId, callback);
+            });
+        };
+
+        // We need to wrap this in a promise or use callback structure properly. 
+        // Since we are inside the route handler, let's use a Promise wrapper for cleaner async/await if possible, 
+        // but here we are in callback hell style. Let's keep it simple.
+
+        // Wait, we can't easily block here without async/await. Let's refactor to use a helper function.
+    }
+
+    // ... wait, let's rewrite the route to be async/await for better flow control
+    // But for now, let's just insert the logic before the update.
+
+    const performUpdate = () => {
+        // Build query dynamically
+        let updates = [];
+        let params = [];
+
+        if (name) {
+            updates.push("filename = ?");
+            params.push(name);
+        }
+        if (parent_id !== undefined) {
+            updates.push("parent_id = ?");
+            params.push(parent_id);
+        }
+        if (access_level !== undefined) {
+            updates.push("access_level = ?");
+            params.push(parseInt(access_level));
+        }
+
+        if (updates.length === 0) return res.status(400).json({ message: "Nothing to update" });
+
+        params.push(id);
+
+        let query = `UPDATE files SET ${updates.join(', ')} WHERE id = ?`;
+
+        // If not admin, restrict to owner
+        if (req.user.role !== 'admin') {
+            query += ` AND owner_id = ?`;
+            params.push(req.user.id);
+        }
+
+        db.run(query, params, function (err) {
             if (err) return res.status(500).json({ error: err.message });
             if (this.changes === 0) return res.status(404).json({ message: "Item not found or access denied" });
-            res.json({ message: "Renamed successfully" });
-        }
-    );
+            res.json({ message: "Updated successfully" });
+        });
+    };
+
+    if (parent_id) {
+        const checkCycle = (currentId) => {
+            return new Promise((resolve, reject) => {
+                db.get(`SELECT parent_id FROM files WHERE id = ?`, [currentId], (err, row) => {
+                    if (err) return reject(err);
+                    if (!row) return resolve(false); // Should not happen if ID exists
+                    if (row.parent_id === null) return resolve(false); // Reached root
+                    if (parseInt(row.parent_id) === parseInt(id)) return resolve(true); // Cycle detected
+                    resolve(checkCycle(row.parent_id));
+                });
+            });
+        };
+
+        checkCycle(parent_id).then(isCycle => {
+            if (isCycle) return res.status(400).json({ message: "Cannot move a folder into its own subfolder" });
+            performUpdate();
+        }).catch(err => res.status(500).json({ error: err.message }));
+    } else {
+        performUpdate();
+    }
 });
 
 // List Files (with pagination, folder support, search, and access level)
@@ -88,9 +164,15 @@ router.get('/', authenticateToken, (req, res) => {
     const positionMap = { 'Staff': 1, 'Manager': 2, 'Director': 3 };
     const userLevel = positionMap[userPosition] || 1;
 
-    // Base query: Owner OR (Access Level <= User Level)
-    let query = `SELECT files.*, users.username as owner_name FROM files JOIN users ON files.owner_id = users.id WHERE files.access_level <= ?`;
-    let params = [userLevel];
+    // Base query
+    let query = `SELECT files.*, users.username as owner_name FROM files JOIN users ON files.owner_id = users.id WHERE 1=1`;
+    let params = [];
+
+    // Access Control: Admin sees all, otherwise check level or ownership
+    if (req.user.role !== 'admin') {
+        query += ` AND (files.access_level <= ? OR files.owner_id = ?)`;
+        params.push(userLevel, req.user.id);
+    }
 
     if (search) {
         query += ` AND files.filename LIKE ?`;
@@ -111,8 +193,13 @@ router.get('/', authenticateToken, (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
 
         // Count query (same logic)
-        let countQuery = `SELECT COUNT(*) as count FROM files WHERE access_level <= ?`;
-        let countParams = [userLevel];
+        let countQuery = `SELECT COUNT(*) as count FROM files WHERE 1=1`;
+        let countParams = [];
+
+        if (req.user.role !== 'admin') {
+            countQuery += ` AND (access_level <= ? OR owner_id = ?)`;
+            countParams.push(userLevel, req.user.id);
+        }
 
         if (search) {
             countQuery += ` AND filename LIKE ?`;
@@ -147,7 +234,13 @@ router.get('/download/:id', authenticateToken, (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!file) return res.status(404).json({ message: "File not found" });
 
-        if (file.owner_id !== req.user.id && req.user.role !== 'admin') {
+        // Determine user level
+        const userPosition = req.user.position || 'Staff';
+        const positionMap = { 'Staff': 1, 'Manager': 2, 'Director': 3 };
+        const userLevel = positionMap[userPosition] || 1;
+
+        // Check: Admin OR Owner OR Access Level
+        if (req.user.role !== 'admin' && file.owner_id !== req.user.id && file.access_level > userLevel) {
             return res.status(403).json({ message: "Access denied" });
         }
 
@@ -163,12 +256,19 @@ router.get('/preview/:id', authenticateToken, (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!file) return res.status(404).json({ message: "File not found" });
 
-        if (file.owner_id !== req.user.id && req.user.role !== 'admin') {
+        // Determine user level
+        const userPosition = req.user.position || 'Staff';
+        const positionMap = { 'Staff': 1, 'Manager': 2, 'Director': 3 };
+        const userLevel = positionMap[userPosition] || 1;
+
+        // Check: Admin OR Owner OR Access Level
+        if (req.user.role !== 'admin' && file.owner_id !== req.user.id && file.access_level > userLevel) {
             return res.status(403).json({ message: "Access denied" });
         }
 
         res.setHeader('Content-Type', file.mimetype);
-        res.setHeader('Content-Disposition', `inline; filename="${file.filename}"`);
+        // Use filename*=UTF-8'' for proper browser support of non-ASCII characters
+        res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(file.filename)}`);
         res.sendFile(file.path);
     });
 });

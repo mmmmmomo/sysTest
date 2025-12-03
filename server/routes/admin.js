@@ -6,7 +6,7 @@ const { authenticateToken, isAdmin } = require('../authMiddleware');
 const router = express.Router();
 
 // List all users (optional group_id filter)
-router.get('/users', authenticateToken, isAdmin, (req, res) => {
+router.get('/users', authenticateToken, (req, res) => {
     let query = `SELECT id, username, role, position, group_id FROM users`;
     let params = [];
 
@@ -23,6 +23,27 @@ router.get('/users', authenticateToken, isAdmin, (req, res) => {
     db.all(query, params, (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows);
+    });
+});
+
+// Get user details with stats
+router.get('/users/:id/details', authenticateToken, (req, res) => {
+    const userId = req.params.id;
+
+    db.get(`SELECT id, username, role, position, group_id FROM users WHERE id = ?`, [userId], (err, user) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!user) return res.status(404).json({ message: "User not found" });
+
+        // Get file stats
+        db.get(`SELECT COUNT(*) as file_count, SUM(size) as total_size FROM files WHERE owner_id = ? AND is_folder = 0`, [userId], (err, stats) => {
+            if (err) return res.status(500).json({ error: err.message });
+
+            res.json({
+                ...user,
+                file_count: stats.file_count || 0,
+                total_size: stats.total_size || 0
+            });
+        });
     });
 });
 
@@ -75,6 +96,28 @@ router.put('/users/:id/group', authenticateToken, isAdmin, (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         if (this.changes === 0) return res.status(404).json({ message: "User not found" });
         res.json({ message: "Group updated" });
+    });
+});
+
+// Update user details (e.g. username)
+router.put('/users/:id', authenticateToken, isAdmin, (req, res) => {
+    const { username } = req.body;
+    const updates = [];
+    const params = [];
+
+    if (username) {
+        updates.push("username = ?");
+        params.push(username);
+    }
+
+    if (updates.length === 0) return res.status(400).json({ message: "Nothing to update" });
+
+    params.push(req.params.id);
+
+    db.run(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, params, function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) return res.status(404).json({ message: "User not found" });
+        res.json({ message: "User updated" });
     });
 });
 

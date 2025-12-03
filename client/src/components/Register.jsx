@@ -25,18 +25,18 @@ const Register = () => {
                 setError(data.message);
             }
         } catch (err) {
-            setError('Failed to connect to server');
+            setError('连接服务器失败');
         }
     };
 
     return (
         <div className="container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
             <div className="card animate-fade-in" style={{ width: '100%', maxWidth: '400px' }}>
-                <h2 style={{ textAlign: 'center', marginBottom: '2rem' }}>Create Account</h2>
+                <h2 style={{ textAlign: 'center', marginBottom: '2rem' }}>创建账号</h2>
                 {error && <div style={{ color: 'var(--danger-color)', marginBottom: '1rem', textAlign: 'center' }}>{error}</div>}
                 <form onSubmit={handleSubmit}>
                     <div className="input-group">
-                        <label className="input-label">Username</label>
+                        <label className="input-label">用户名</label>
                         <input
                             type="text"
                             className="input-field"
@@ -46,7 +46,7 @@ const Register = () => {
                         />
                     </div>
                     <div className="form-group">
-                        <label>Password</label>
+                        <label>密码</label>
                         <input
                             type="password"
                             className="input-field"
@@ -56,21 +56,21 @@ const Register = () => {
                         />
                     </div>
                     <div className="form-group">
-                        <label>Position</label>
+                        <label>职位</label>
                         <select
                             className="input-field"
                             value={position}
                             onChange={(e) => setPosition(e.target.value)}
                         >
-                            <option value="Staff">Staff</option>
-                            <option value="Manager">Manager</option>
-                            <option value="Director">Director</option>
+                            <option value="Staff">员工</option>
+                            <option value="Manager">经理</option>
+                            <option value="Director">总监</option>
                         </select>
                     </div>
-                    <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Register</button>
+                    <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>注册</button>
                 </form>
                 <div style={{ marginTop: '1.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                    Already have an account? <Link to="/login" style={{ color: '#3b82f6', textDecoration: 'none' }}>Login</Link>
+                    已有账号？ <Link to="/login" style={{ color: '#3b82f6', textDecoration: 'none' }}>登录</Link>
                 </div>
             </div>
         </div>
